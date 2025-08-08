@@ -3,12 +3,14 @@ import { useState } from 'react'
 function App() {
   const [formData, setFormData] = useState({
     namaLengkap: '',
+    produkKredit: '',
     tanggalLahir: '',
     jenisAsuransi: '',
     pekerjaan: '',
     produkAsuransi: '',
     jumlahPengajuan: '',
     jangkaWaktu: '',
+    bunga: '',
     biayaProvisi: '',
     biayaNotaris: '',
     jenisPengikatan: '',
@@ -19,17 +21,15 @@ function App() {
 
   const pekerjaanOptions = {
     'Askrida': [
-      { value: 'PNS/POLRI/TNI', label: 'PNS/POLRI/TNI', rate: 0.24 },
-      { value: 'Honorer', label: 'Honorer', rate: 0.36 },
-      { value: 'Pensiunan PNS/POLRI/TNI', label: 'Pensiunan PNS/POLRI/TNI', rate: 0.36 },
-      { value: 'Karyawan BUMN', label: 'Karyawan BUMN', rate: 0.36 },
-      { value: 'Karyawan Swasta', label: 'Karyawan Swasta', rate: 0.48 },
-      { value: 'Pensiunan BUMN', label: 'Pensiunan BUMN', rate: 0.48 },
-      { value: 'Pensiunan Swasta', label: 'Pensiunan Swasta', rate: 0.48 },
-      { value: 'Dokter', label: 'Dokter', rate: 0.36 },
-      { value: 'Notaris', label: 'Notaris', rate: 0.36 },
-      { value: 'Wiraswasta', label: 'Wiraswasta', rate: 0.60 },
-      { value: 'Lainnya', label: 'Lainnya', rate: 0.60 }
+      { value: '1', label: 'PNS', rate: 0.24 },
+      { value: '2', label: 'TNI/POLRI', rate: 0.24 },
+      { value: '3', label: 'BUMN/BUMD', rate: 0.36 },
+      { value: '4', label: 'PEGAWAI BPR', rate: 0.48 },
+      { value: '5', label: 'SERTIF PNS', rate: 0.36 },
+      { value: '6', label: 'KARTAP SWASTA', rate: 0.48 },
+      { value: '7', label: 'PPPK/HONORER/KONTRAK PROV. BANTEN', rate: 0.36 },
+      { value: '8', label: 'KEPALA DESA', rate: 0.36 },
+      { value: '9', label: 'PERANGKAT DESA', rate: 0.60 }
     ],
     'Jamkrida': [
       { value: 'PNS', label: 'PNS', rate: 0.50 },
@@ -57,7 +57,27 @@ function App() {
     { value: '3', label: '3%' }
   ]
 
+  // Fungsi untuk menghitung biaya provisi berdasarkan jangka waktu
+  const calculateBiayaProvisi = (jangkaWaktu) => {
+    const bulan = parseInt(jangkaWaktu) || 0
+    if (bulan >= 1 && bulan <= 24) return '1'
+    if (bulan >= 25 && bulan <= 36) return '1.5'
+    if (bulan >= 37 && bulan <= 48) return '2'
+    if (bulan >= 49 && bulan <= 60) return '2.5'
+    if (bulan >= 61 && bulan <= 120) return '3'
+    return ''
+  }
+
   const jenisAsuransiOptions = ['Askrida', 'Jamkrida']
+
+  const produkKreditOptions = [
+    { value: '1', label: 'Umum' },
+    { value: '2', label: 'Sertifikasi' },
+    { value: '3', label: 'Karyawan Swasta' },
+    { value: '4', label: 'PNS - Gaji' },
+    { value: '5', label: 'PNS - Tunda/Tukin' },
+    { value: '6', label: 'PPPK' }
+  ]
 
   const produkAsuransiOptions = [
     { value: 'PA+ND (TANPA PHK)', label: 'PA+ND (TANPA PHK)' },
@@ -94,6 +114,28 @@ function App() {
       setFormData(prev => ({
         ...prev,
         [name]: formattedValue
+      }))
+    } else if (name === 'biayaProvisi') {
+      // Remove % sign dan ambil angka saja
+      const numericValue = value.replace(/[^0-9.]/g, '')
+      setFormData(prev => ({
+        ...prev,
+        [name]: numericValue
+      }))
+    } else if (name === 'bunga') {
+      // Remove % sign dan ambil angka saja
+      const numericValue = value.replace(/[^0-9.]/g, '')
+      setFormData(prev => ({
+        ...prev,
+        [name]: numericValue
+      }))
+    } else if (name === 'jangkaWaktu') {
+      // Auto-fill biaya provisi berdasarkan jangka waktu
+      const newBiayaProvisi = calculateBiayaProvisi(value)
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        biayaProvisi: newBiayaProvisi
       }))
     } else {
       setFormData(prev => ({
@@ -163,6 +205,24 @@ function App() {
     return `${day}/${month}/${year}`
   }
 
+  // Fungsi untuk mendapatkan label tabungan wajib berdasarkan produk kredit
+  const getTabunganWajibLabel = () => {
+    const produkKredit = formData.produkKredit
+    if (produkKredit === '1') return 'Tabungan Wajib (5%)'
+    if (produkKredit === '2') return 'Tabungan Wajib (0%)'
+    if (['3', '4', '5', '6'].includes(produkKredit)) return 'Tabungan Wajib (3%)'
+    return 'Tabungan Wajib (3%)'
+  }
+
+  // Fungsi untuk mendapatkan label cadangan angsuran berdasarkan produk kredit
+  const getCadanganAngsuranLabel = () => {
+    const produkKredit = formData.produkKredit
+    if (produkKredit === '1') return 'Cadangan Angsuran (0x)'
+    if (produkKredit === '2') return 'Cadangan Angsuran (4x)'
+    if (['3', '4', '5', '6'].includes(produkKredit)) return 'Cadangan Angsuran (1x)'
+    return 'Cadangan Angsuran (1x)'
+  }
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -175,6 +235,7 @@ function App() {
   const calculateLoan = () => {
     const jumlahPengajuan = parseFloat(parseFormattedNumber(formData.jumlahPengajuan)) || 0
     const biayaProvisiValue = parseFloat(formData.biayaProvisi) || 0
+    const bungaValue = parseFloat(formData.bunga) || 0
     const biayaNotaris = parseFloat(parseFormattedNumber(formData.biayaNotaris)) || 0
     const pelunasan = parseFloat(parseFormattedNumber(formData.pelunasan)) || 0
     const jangkaWaktu = parseFloat(formData.jangkaWaktu) || 0
@@ -198,16 +259,37 @@ function App() {
       premiAsuransi = jumlahPengajuan * (rate / 100)
     }
 
-    // Hitung angsuran bulanan (anuitas)
-    const bungaBulanan = (biayaProvisiValue / 100) / 12
-    const angsuranBulanan = (jumlahPengajuan * bungaBulanan * Math.pow(1 + bungaBulanan, jangkaWaktu)) / 
+    // Hitung angsuran bulanan (anuitas) dengan ceiling 500
+    const bungaBulanan = bungaValue / 100
+    let angsuranBulanan = (jumlahPengajuan * bungaBulanan * Math.pow(1 + bungaBulanan, jangkaWaktu)) / 
                            (Math.pow(1 + bungaBulanan, jangkaWaktu) - 1)
+    
+    // Apply ceiling 500
+    angsuranBulanan = Math.ceil(angsuranBulanan / 500) * 500
 
-    // Hitung tabungan wajib (3%)
-    const tabunganWajib = jumlahPengajuan * 0.03
-
-    // Hitung cadangan angsuran (1x angsuran)
-    const cadanganAngsuran = angsuranBulanan
+    // Hitung tabungan wajib dan cadangan angsuran berdasarkan produk kredit
+    let tabunganWajib = 0
+    let cadanganAngsuran = 0
+    
+    const produkKredit = formData.produkKredit
+    
+    if (produkKredit === '1') {
+      // Produk 1 (Umum): 5% tabungan beku + 0 cadangan angsuran
+      tabunganWajib = jumlahPengajuan * 0.05
+      cadanganAngsuran = 0
+    } else if (produkKredit === '2') {
+      // Produk 2 (Sertifikasi): 0% tabungan beku + 4x cadangan angsuran
+      tabunganWajib = 0
+      cadanganAngsuran = angsuranBulanan * 4
+    } else if (['3', '4', '5', '6'].includes(produkKredit)) {
+      // Produk 3-6: 3% tabungan beku + 1x cadangan angsuran
+      tabunganWajib = jumlahPengajuan * 0.03
+      cadanganAngsuran = angsuranBulanan
+    } else {
+      // Default jika produk kredit belum dipilih (menggunakan aturan lama)
+      tabunganWajib = jumlahPengajuan * 0.03
+      cadanganAngsuran = angsuranBulanan
+    }
 
     // Hitung total biaya
     const totalBiaya = biayaProvisi + premiAsuransi + biayaNotaris + pelunasan + tabunganWajib + cadanganAngsuran
@@ -269,7 +351,7 @@ function App() {
           }
           .print-table td {
             padding: 8px 12px !important;
-            border-bottom: 1px solid #e5e7eb !important;
+            border-bottom: 1px solid #d1d5db !important;
             page-break-inside: avoid;
           }
           .print-table td:first-child {
@@ -321,6 +403,26 @@ function App() {
                     placeholder="Masukkan nama lengkap"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+
+                {/* Produk Kredit */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Produk Kredit
+                  </label>
+                  <select
+                    name="produkKredit"
+                    value={formData.produkKredit}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Pilih Produk Kredit</option>
+                    {produkKreditOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Tanggal Lahir */}
@@ -431,22 +533,51 @@ function App() {
                   />
                 </div>
 
+                {/* Bunga */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bunga (% per bulan)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="bunga"
+                      value={formData.bunga ? `${formData.bunga}%` : ''}
+                      onChange={handleInputChange}
+                      placeholder="Masukkan bunga per bulan"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Masukkan persentase bunga per bulan (contoh: 1 untuk 1%)
+                  </p>
+                </div>
+
                 {/* Biaya Provisi */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Biaya Provisi
                   </label>
-                  <select
-                    name="biayaProvisi"
-                    value={formData.biayaProvisi}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Pilih Biaya Provisi</option>
-                    {biayaProvisiOptions.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="biayaProvisi"
+                      value={formData.biayaProvisi ? `${formData.biayaProvisi}%` : ''}
+                      onChange={handleInputChange}
+                      disabled={!formData.jangkaWaktu || parseInt(formData.jangkaWaktu) <= 1}
+                      placeholder={formData.jangkaWaktu && parseInt(formData.jangkaWaktu) > 1 ? "Masukkan biaya provisi" : "Isi jangka waktu > 1 bulan"}
+                      className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        !formData.jangkaWaktu || parseInt(formData.jangkaWaktu) <= 1 
+                          ? 'bg-gray-100 text-gray-700 cursor-not-allowed' 
+                          : ''
+                      }`}
+                    />
+                  </div>
+                  {formData.jangkaWaktu && parseInt(formData.jangkaWaktu) > 1 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Masukkan persentase biaya provisi (contoh: 2 untuk 2%)
+                    </p>
+                  )}
                 </div>
 
                 {/* Biaya Notaris */}
@@ -536,26 +667,26 @@ function App() {
                   <table className="w-full print-table border-collapse">
                     <tbody>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 w-1/3 text-left">Nama</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-200 text-right">{formData.namaLengkap}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 w-1/3 text-left">Nama</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-300 text-right">{formData.namaLengkap}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Tanggal Lahir & Usia</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-200 text-right">
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Tanggal Lahir & Usia</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-300 text-right">
                           {formatDateToDDMMYYYY(formData.tanggalLahir)} ({calculateAge(formData.tanggalLahir)} tahun)
                         </td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Pengajuan</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-200 text-right">{formatCurrency(calculation.jumlahPengajuan)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Pengajuan</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-300 text-right">{formatCurrency(calculation.jumlahPengajuan)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Jangka Waktu</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-200 text-right">{formData.jangkaWaktu} bulan</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Jangka Waktu</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-300 text-right">{formData.jangkaWaktu} bulan</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Bunga</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-200 text-right">{formData.biayaProvisi}% per tahun</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Bunga</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 border-b border-gray-300 text-right">{formData.bunga}% per bulan</td>
                       </tr>
                       <tr>
                         <td className="py-2 px-3 text-sm text-gray-700 font-medium text-left">Angsuran</td>
@@ -571,36 +702,36 @@ function App() {
                   <table className="w-full print-table border-collapse">
                     <tbody>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Plafond</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.jumlahPengajuan)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Plafond</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.jumlahPengajuan)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Biaya Provisi ({formData.biayaProvisi}%)</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.biayaProvisi)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Biaya Provisi ({formData.biayaProvisi}%)</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.biayaProvisi)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Biaya Notaris</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.biayaNotaris)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Biaya Notaris</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.biayaNotaris)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Premi Asuransi ({formData.jenisAsuransi})</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.premiAsuransi)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Premi Asuransi ({formData.jenisAsuransi})</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.premiAsuransi)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Tabungan Wajib (3%)</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.tabunganWajib)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">{getTabunganWajibLabel()}</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.tabunganWajib)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Cadangan Angsuran (1x)</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.cadanganAngsuran)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">{getCadanganAngsuranLabel()}</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.cadanganAngsuran)}</td>
                       </tr>
                       <tr>
-                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-200 text-left">Pelunasan</td>
-                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-200">{formatCurrency(calculation.pelunasan)}</td>
+                        <td className="py-2 px-3 text-sm text-gray-700 font-medium border-b border-gray-300 text-left">Pelunasan</td>
+                        <td className="py-2 px-3 text-sm text-gray-900 text-right border-b border-gray-300">{formatCurrency(calculation.pelunasan)}</td>
                       </tr>
                       <tr className="border-t-2 border-gray-400">
-                        <td className="py-3 px-3 text-sm text-gray-900 font-bold bg-gray-50 text-left">Total Biaya</td>
-                        <td className="py-3 px-3 text-sm text-gray-900 font-bold text-right bg-gray-50">
+                        <td className="py-3 px-3 text-sm text-gray-900 font-bold bg-gray-50 text-left border-b border-gray-300">Total Biaya</td>
+                        <td className="py-3 px-3 text-sm text-gray-900 font-bold text-right bg-gray-50 border-b border-gray-300">
                           {formatCurrency(calculation.totalBiaya)}
                         </td>
                       </tr>
