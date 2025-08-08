@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from './lib/supabase'
 
 function App() {
   const [formData, setFormData] = useState({
@@ -18,6 +19,7 @@ function App() {
   })
 
   const [calculation, setCalculation] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const pekerjaanOptions = {
     'Askrida': [
@@ -232,7 +234,53 @@ function App() {
     }).format(amount)
   }
 
-  const calculateLoan = () => {
+  // Fungsi untuk menyimpan data ke Supabase
+  const saveToSupabase = async (formData, calculationData) => {
+    try {
+      const dataToSave = {
+        nama_lengkap: formData.namaLengkap,
+        produk_kredit: formData.produkKredit,
+        tanggal_lahir: formData.tanggalLahir,
+        jenis_asuransi: formData.jenisAsuransi,
+        pekerjaan: formData.pekerjaan,
+        produk_asuransi: formData.produkAsuransi || null,
+        jumlah_pengajuan: parseFloat(parseFormattedNumber(formData.jumlahPengajuan)) || 0,
+        jangka_waktu: parseInt(formData.jangkaWaktu) || 0,
+        bunga: parseFloat(formData.bunga) || 0,
+        biaya_provisi: parseFloat(formData.biayaProvisi) || 0,
+        biaya_notaris: parseFloat(parseFormattedNumber(formData.biayaNotaris)) || 0,
+        jenis_pengikatan: formData.jenisPengikatan,
+        pelunasan: parseFloat(parseFormattedNumber(formData.pelunasan)) || 0,
+        // Hasil perhitungan
+        hasil_biaya_provisi: calculationData.biayaProvisi,
+        hasil_premi_asuransi: calculationData.premiAsuransi,
+        hasil_angsuran_bulanan: calculationData.angsuranBulanan,
+        hasil_tabungan_wajib: calculationData.tabunganWajib,
+        hasil_cadangan_angsuran: calculationData.cadanganAngsuran,
+        hasil_total_biaya: calculationData.totalBiaya,
+        hasil_total_dana_diterima: calculationData.totalDanaDiterima,
+        created_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('simulasi_kredit')
+        .insert([dataToSave])
+        .select()
+
+      if (error) {
+        console.error('Error saving to Supabase:', error)
+        throw error
+      }
+
+      console.log('Data saved successfully:', data)
+      return data
+    } catch (error) {
+      console.error('Error in saveToSupabase:', error)
+      throw error
+    }
+  }
+
+  const calculateLoan = async () => {
     const jumlahPengajuan = parseFloat(parseFormattedNumber(formData.jumlahPengajuan)) || 0
     const biayaProvisiValue = parseFloat(formData.biayaProvisi) || 0
     const bungaValue = parseFloat(formData.bunga) || 0
@@ -245,70 +293,91 @@ function App() {
       return
     }
 
-    // Hitung biaya provisi
-    const biayaProvisi = jumlahPengajuan * (biayaProvisiValue / 100)
+    setIsLoading(true)
 
-    // Hitung premi asuransi
-    let premiAsuransi = 0
-    const rate = getAsuransiRate()
-    
-    if (formData.jenisAsuransi === 'Askrida') {
-      const jangkaWaktuTahun = jangkaWaktu / 12
-      premiAsuransi = jumlahPengajuan * (rate / 100) * jangkaWaktuTahun
-    } else {
-      premiAsuransi = jumlahPengajuan * (rate / 100)
+    try {
+      // Hitung biaya provisi
+      const biayaProvisi = jumlahPengajuan * (biayaProvisiValue / 100)
+
+      // Hitung premi asuransi
+      let premiAsuransi = 0
+      const rate = getAsuransiRate()
+      
+      if (formData.jenisAsuransi === 'Askrida') {
+        const jangkaWaktuTahun = jangkaWaktu / 12
+        premiAsuransi = jumlahPengajuan * (rate / 100) * jangkaWaktuTahun
+      } else {
+        premiAsuransi = jumlahPengajuan * (rate / 100)
+      }
+
+      // Hitung angsuran bulanan (anuitas) dengan ceiling 500
+      const bungaBulanan = bungaValue / 100
+      let angsuranBulanan = (jumlahPengajuan * bungaBulanan * Math.pow(1 + bungaBulanan, jangkaWaktu)) / 
+                             (Math.pow(1 + bungaBulanan, jangkaWaktu) - 1)
+      
+      // Apply ceiling 500
+      angsuranBulanan = Math.ceil(angsuranBulanan / 500) * 500
+
+      // Hitung tabungan wajib dan cadangan angsuran berdasarkan produk kredit
+      let tabunganWajib = 0
+      let cadanganAngsuran = 0
+      
+      const produkKredit = formData.produkKredit
+      
+      if (produkKredit === '1') {
+        // Produk 1 (Umum): 5% tabungan beku + 0 cadangan angsuran
+        tabunganWajib = jumlahPengajuan * 0.05
+        cadanganAngsuran = 0
+      } else if (produkKredit === '2') {
+        // Produk 2 (Sertifikasi): 0% tabungan beku + 4x cadangan angsuran
+        tabunganWajib = 0
+        cadanganAngsuran = angsuranBulanan * 4
+      } else if (['3', '4', '5', '6'].includes(produkKredit)) {
+        // Produk 3-6: 3% tabungan beku + 1x cadangan angsuran
+        tabunganWajib = jumlahPengajuan * 0.03
+        cadanganAngsuran = angsuranBulanan
+      } else {
+        // Default jika produk kredit belum dipilih (menggunakan aturan lama)
+        tabunganWajib = jumlahPengajuan * 0.03
+        cadanganAngsuran = angsuranBulanan
+      }
+
+      // Hitung total biaya
+      const totalBiaya = biayaProvisi + premiAsuransi + biayaNotaris + pelunasan + tabunganWajib + cadanganAngsuran
+
+      // Hitung total dana diterima
+      const totalDanaDiterima = jumlahPengajuan - totalBiaya
+
+      const calculationData = {
+        jumlahPengajuan,
+        biayaProvisi,
+        premiAsuransi,
+        biayaNotaris,
+        pelunasan,
+        angsuranBulanan,
+        tabunganWajib,
+        cadanganAngsuran,
+        totalBiaya,
+        totalDanaDiterima
+      }
+
+      // Set calculation state
+      setCalculation(calculationData)
+
+      // Simpan ke Supabase
+      try {
+        await saveToSupabase(formData, calculationData)
+        console.log('Data berhasil disimpan ke database')
+      } catch (error) {
+        console.error('Error saving data:', error)
+        alert('Terjadi kesalahan saat menyimpan data. Data perhitungan tetap ditampilkan.')
+      }
+    } catch (error) {
+      console.error('Error in calculation:', error)
+      alert('Terjadi kesalahan dalam perhitungan. Silakan coba lagi.')
+    } finally {
+      setIsLoading(false)
     }
-
-    // Hitung angsuran bulanan (anuitas) dengan ceiling 500
-    const bungaBulanan = bungaValue / 100
-    let angsuranBulanan = (jumlahPengajuan * bungaBulanan * Math.pow(1 + bungaBulanan, jangkaWaktu)) / 
-                           (Math.pow(1 + bungaBulanan, jangkaWaktu) - 1)
-    
-    // Apply ceiling 500
-    angsuranBulanan = Math.ceil(angsuranBulanan / 500) * 500
-
-    // Hitung tabungan wajib dan cadangan angsuran berdasarkan produk kredit
-    let tabunganWajib = 0
-    let cadanganAngsuran = 0
-    
-    const produkKredit = formData.produkKredit
-    
-    if (produkKredit === '1') {
-      // Produk 1 (Umum): 5% tabungan beku + 0 cadangan angsuran
-      tabunganWajib = jumlahPengajuan * 0.05
-      cadanganAngsuran = 0
-    } else if (produkKredit === '2') {
-      // Produk 2 (Sertifikasi): 0% tabungan beku + 4x cadangan angsuran
-      tabunganWajib = 0
-      cadanganAngsuran = angsuranBulanan * 4
-    } else if (['3', '4', '5', '6'].includes(produkKredit)) {
-      // Produk 3-6: 3% tabungan beku + 1x cadangan angsuran
-      tabunganWajib = jumlahPengajuan * 0.03
-      cadanganAngsuran = angsuranBulanan
-    } else {
-      // Default jika produk kredit belum dipilih (menggunakan aturan lama)
-      tabunganWajib = jumlahPengajuan * 0.03
-      cadanganAngsuran = angsuranBulanan
-    }
-
-    // Hitung total biaya
-    const totalBiaya = biayaProvisi + premiAsuransi + biayaNotaris + pelunasan + tabunganWajib + cadanganAngsuran
-
-    // Hitung total dana diterima
-    const totalDanaDiterima = jumlahPengajuan - totalBiaya
-
-    setCalculation({
-      jumlahPengajuan,
-      biayaProvisi,
-      premiAsuransi,
-      biayaNotaris,
-      pelunasan,
-      angsuranBulanan,
-      tabunganWajib,
-      cadanganAngsuran,
-      totalBiaya,
-      totalDanaDiterima
-    })
   }
 
   const handlePrint = () => {
@@ -639,11 +708,16 @@ function App() {
                 <button
                   type="button"
                   onClick={calculateLoan}
-                  className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-200 font-medium"
+                  disabled={isLoading}
+                  className={`flex-1 py-3 px-6 rounded-lg transition duration-200 font-medium ${
+                    isLoading 
+                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  Hitung Simulasi
+                  {isLoading ? 'Menghitung & Menyimpan...' : 'Hitung Simulasi'}
                 </button>
-                {calculation && (
+                {calculation && !isLoading && (
                   <button
                     type="button"
                     onClick={handlePrint}
