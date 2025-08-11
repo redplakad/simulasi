@@ -238,6 +238,18 @@ function App() {
   // Fungsi untuk menyimpan data ke Supabase
   const saveToSupabase = async (formData, calculationData) => {
     try {
+      // Buat timestamp dengan timezone Jakarta (WIB)
+      const jakartaTime = new Date().toLocaleString("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).replace(", ", "T") + "+07:00"
+
       const dataToSave = {
         nama_lengkap: formData.namaLengkap,
         produk_kredit: formData.produkKredit,
@@ -260,7 +272,7 @@ function App() {
         hasil_cadangan_angsuran: calculationData.cadanganAngsuran,
         hasil_total_biaya: calculationData.totalBiaya,
         hasil_total_dana_diterima: calculationData.totalDanaDiterima,
-        created_at: new Date().toISOString()
+        created_at: jakartaTime
       }
 
       const { data, error } = await supabase
@@ -561,7 +573,14 @@ function App() {
                   >
                     <option value="">Pilih Jenis Asuransi</option>
                     {jenisAsuransiOptions.map(option => (
-                      <option key={option} value={option}>{option}</option>
+                      <option 
+                        key={option} 
+                        value={option}
+                        disabled={option === 'Jamkrida'}
+                        className={option === 'Jamkrida' ? 'text-gray-400' : ''}
+                      >
+                        {option === 'Jamkrida' ? `${option} (Coming Soon)` : option}
+                      </option>
                     ))}
                   </select>
                 </div>
