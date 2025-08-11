@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
+import { Analytics } from "@vercel/analytics/react"
 
 function App() {
   const [formData, setFormData] = useState({
@@ -281,6 +282,35 @@ function App() {
   }
 
   const calculateLoan = async () => {
+    // Validasi field mandatory
+    const requiredFields = [
+      { field: 'produkKredit', label: 'Produk Kredit' },
+      { field: 'tanggalLahir', label: 'Tanggal Lahir' },
+      { field: 'jenisAsuransi', label: 'Jenis Asuransi' },
+      { field: 'pekerjaan', label: 'Pekerjaan' },
+      { field: 'jumlahPengajuan', label: 'Jumlah Pengajuan' },
+      { field: 'jangkaWaktu', label: 'Jangka Waktu' },
+      { field: 'bunga', label: 'Bunga' }
+    ]
+
+    // Tambah validasi Produk Asuransi jika Jenis Asuransi adalah Askrida
+    if (formData.jenisAsuransi === 'Askrida') {
+      requiredFields.push({ field: 'produkAsuransi', label: 'Produk Asuransi' })
+    }
+
+    // Cek field yang kosong
+    const emptyFields = requiredFields.filter(({ field }) => {
+      const value = formData[field]
+      return !value || value.toString().trim() === ''
+    })
+
+    // Jika ada field yang kosong, tampilkan alert
+    if (emptyFields.length > 0) {
+      const fieldNames = emptyFields.map(({ label }) => label).join(', ')
+      alert(`Mohon lengkapi field berikut: ${fieldNames}`)
+      return
+    }
+
     const jumlahPengajuan = parseFloat(parseFormattedNumber(formData.jumlahPengajuan)) || 0
     const biayaProvisiValue = parseFloat(formData.biayaProvisi) || 0
     const bungaValue = parseFloat(formData.bunga) || 0
@@ -290,6 +320,16 @@ function App() {
 
     if (jumlahPengajuan <= 0) {
       alert('Masukkan jumlah pengajuan yang valid')
+      return
+    }
+
+    if (bungaValue <= 0) {
+      alert('Masukkan bunga yang valid')
+      return
+    }
+
+    if (jangkaWaktu <= 0) {
+      alert('Masukkan jangka waktu yang valid')
       return
     }
 
@@ -477,7 +517,7 @@ function App() {
                 {/* Produk Kredit */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Produk Kredit
+                    Produk Kredit <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="produkKredit"
@@ -497,7 +537,7 @@ function App() {
                 {/* Tanggal Lahir */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tanggal Lahir
+                    Tanggal Lahir <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -511,7 +551,7 @@ function App() {
                 {/* Jenis Asuransi */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jenis Asuransi
+                    Jenis Asuransi <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="jenisAsuransi"
@@ -529,7 +569,7 @@ function App() {
                 {/* Pekerjaan */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pekerjaan
+                    Pekerjaan <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="pekerjaan"
@@ -551,7 +591,7 @@ function App() {
                 {formData.jenisAsuransi === 'Askrida' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Produk Asuransi
+                      Produk Asuransi <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="produkAsuransi"
@@ -570,7 +610,7 @@ function App() {
                 {/* Jumlah Pengajuan */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jumlah Pengajuan
+                    Jumlah Pengajuan <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-3 text-gray-500">Rp</span>
@@ -588,7 +628,7 @@ function App() {
                 {/* Jangka Waktu */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Jangka Waktu (Bulan)
+                    Jangka Waktu (Bulan) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -605,7 +645,7 @@ function App() {
                 {/* Bunga */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bunga (% per bulan)
+                    Bunga (% per bulan) <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -834,6 +874,7 @@ function App() {
           </div>
         </div>
       </div>
+      <Analytics />
     </div>
   )
 }
